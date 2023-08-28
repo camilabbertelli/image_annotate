@@ -4,3 +4,5 @@ merge.*
 opencv.*
 rect.*
 zoom*
+*.jpg
+*.png

@@ -76,6 +76,30 @@ def populateImages():
 
     return sorted(allImages)
 
+
+def transform(event):
+
+    if "KP_End" in event:
+        return "1"
+    if "KP_Down" in event:
+        return "2"
+    if "KP_Next" in event:
+        return "3"
+    if "KP_Left" in event:
+        return "4"
+    if "KP_Begin" in event:
+        return "5"
+    if "KP_Right" in event:
+        return "6"
+    if "KP_Home" in event:
+        return "7"
+    if "KP_Up" in event:
+        return "8"
+    if "KP_Prior" in event:
+        return "9"
+    
+    return event
+
 folder_name = sys.argv[1]
 #folder_name = "/home/camicasa/Documents/image_annotate/test_images"
 
@@ -106,7 +130,7 @@ goToImage(indexCurrentImage)
 while True:
 
     event, values = window.read()
-
+    event = transform(event)
 
     if event in (sg.WIN_CLOSED, 'Exit'):
         break
@@ -371,7 +395,7 @@ if len(missingAnnotation) == len(allImages):
     exit()
 
 for missing in missingAnnotation:
-    imagesLabels[image] = [defaultLabel]
+    imagesLabels[missing] = [defaultLabel]
     if defaultLabel not in labels: 
         labels.append(defaultLabel)
 
