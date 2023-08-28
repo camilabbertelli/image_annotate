@@ -19,7 +19,7 @@ program_type_space = [[sg.Text("Program Type:", font=subtitleFont)],
 
 browse_folder_space = [[sg.Text("Images folder:", font=subtitleFont)],
                 [sg.Input(size=(60, 1), enable_events=True, key="folder", font=bodyFont),
-                sg.FolderBrowse()],
+                sg.FolderBrowse(font=bodyFont)],
                 [sg.Text(key="error", font=bodyFont)]]
 
 go_button_space = [[sg.Button("Go!", key="go", font=subtitleFont)]]
@@ -34,10 +34,9 @@ layout_main = [[sg.VPush()],
 
 """ CLASSIFICATION """
 
-labelsInList = list()
 defaultLabel = "default"
 labels_space = [[sg.Text("Available classes:", font=subtitleFont)],
-               [sg.Listbox(values=labelsInList, size=(30, 20), enable_events=True, key="labels", font=bodyFont, horizontal_scroll=True, select_mode='multiple')],
+               [sg.Listbox(values=list(), size=(30, 20), enable_events=True, key="labels", font=bodyFont, horizontal_scroll=True, select_mode='multiple')],
                [sg.Input(size=(30, 5), key="labelToAdd", enable_events=True, font=bodyFont)], 
                [sg.Button("Add", key="addLabel", font=bodyFont), sg.Button("Remove", key="removeLabel", font=bodyFont), sg.Button("Edit", key="editLabel", font=bodyFont)],
                [sg.Text(key='error', font=bodyFont)],
@@ -64,7 +63,7 @@ def popup(message):
 
 browse_save_space = [[sg.Text("Destination folder: (please select an existing folder or create a new one by typing in the input)", font=subtitleFont)],
                 [sg.Input(size=(60, 1), enable_events=True, key="folder", font=bodyFont),
-                sg.FolderBrowse()],
+                sg.FolderBrowse(font=bodyFont)],
                 [sg.Checkbox("Maintain folder contents", key="maintainContent", enable_events=True, font=bodyFont)],
                 [sg.Text(key="error_folder", font=bodyFont)]]
 
@@ -89,3 +88,24 @@ layout_save_dataset = [[sg.VPush()],
           [sg.VPush()]]
 
 """ DETECTION """
+
+labelsInList = list()
+labels_space = [[sg.Text("Available classes:", font=subtitleFont)],
+               [sg.Listbox(values=labelsInList, size=(30, 20), enable_events=True, key="labels", font=bodyFont, horizontal_scroll=True, select_mode='single')],
+               [sg.Input(size=(30, 5), key="labelToAdd", enable_events=True, font=bodyFont)], 
+               [sg.Button("Add", key="addLabel", font=bodyFont), sg.Button("Remove", key="removeLabel", font=bodyFont), sg.Button("Edit", key="editLabel", font=bodyFont)],
+               [sg.Text(key='error', font=bodyFont)],
+               [sg.Text("Default class for unlabeled image: ", font=bodyFont)],
+               [sg.Input(defaultLabel, size=(30, 5), key="defaultLabel", enable_events=True, font=bodyFont)]]
+
+image_class_space = [[sg.Text("Images loaded: 0", key="numberImages", font=subtitleFont)],
+              [sg.Image(key="currentImage", size=(700, 500))],
+              [sg.Text("", key="imageName", font=bodyFont)], 
+              [sg.Button(key="previous", image_filename="media/previous.png"), sg.Button(key="next", image_filename="media/next.png")]]
+
+layout_detection = [[sg.Text("Quick annotation: "), sg.Button("OFF", key="quickAnnotation")],
+          [sg.VPush(), sg.Push(), sg.Column(labels_space, element_justification='c'), sg.Push(), sg.VPush(), 
+           sg.VSeparator(), 
+           sg.VPush(), sg.Push(), sg.Column(image_class_space, element_justification='c'), sg.Push(), sg.VPush()],
+          [sg.Column([])],[sg.Column([])],
+          [sg.Button("Save-->", key="continue"), sg.Push(), sg.Button("All images", key="allImages")]]

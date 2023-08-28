@@ -6,7 +6,7 @@ import subprocess
 
 # setting up the pysimplegui screen
 
-folder_name = ""
+folderName = ""
 imagesLabels = dict()
 
 window = sg.Window('Image Annotation', gui.layout_main)
@@ -24,9 +24,9 @@ while True:
         window['error'].update("")
 
     if event == 'go':
-        folder_name = values['folder']
+        folderName = values['folder']
 
-        if not folder_name:
+        if not folderName:
             continue
 
         if not os.path.exists(values['folder']):
@@ -53,7 +53,7 @@ if not proceed:
     exit()
 
 if program_type == gui.CLASSIFICATION:
-    subprocess.call(["python3 classification.py \"" + folder_name + "\""], shell=True)
+    subprocess.call(["python3 classification.py \"" + folderName + "\""], shell=True)
 
 if program_type == gui.DETECTION:
-    subprocess.call(["python3 detection.py \"" + folder_name + "\""], shell=True)
+    subprocess.call(["python3 detection.py \"" + folderName + "\""], shell=True)
