@@ -9,6 +9,7 @@ sg.set_options(font=('Ubuntu', 10))
 
 """ MAIN """
 
+ # different program types
 CLASSIFICATION = "Classification program"
 DETECTION = "Detection program"
 

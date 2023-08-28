@@ -77,7 +77,7 @@ def populateImages():
     return sorted(allImages)
 
 
-def transform(event):
+def transformNumpad(event):
 
     if "KP_End" in event:
         return "1"
@@ -100,13 +100,19 @@ def transform(event):
     
     return event
 
-folder_name = sys.argv[1]
-#folder_name = "/home/camicasa/Documents/image_annotate/test_images"
+if len(sys.argv) < 2:
+    sg.popup_no_buttons("Please provide the correct arguments.")
+    exit()
 
+folder_name = sys.argv[1]
+
+# global lists and dicts initialization
 labels = list()
 allImages = list()
 imagesLabels = dict()
+missingAnnotation = list()
 
+# populate images list
 allImages = populateImages()
 
 if not allImages:
@@ -114,23 +120,26 @@ if not allImages:
     os.system("python3 main.py")
     exit()
 
+# main window creation and keyboard bindings
 window = sg.Window('Image Classification Annotation', gui.layout_classification, finalize=True, return_keyboard_events=True)
 window['labelToAdd'].bind("<Return>", "_enter")
 window["labelToAdd"].set_focus(True)
 window["numberImages"].update("Images loaded:" + str(len(allImages)))
 
+# control variables
 proceed = False
-missingAnnotation = list()
 firstQuickAnnotation = True
 quickAnnotation = False
 defaultLabel = ""
 
+# load first image 
 goToImage(indexCurrentImage)
 
 while True:
 
     event, values = window.read()
-    event = transform(event)
+    # transform base numpad event 
+    event = transformNumpad(event)
 
     if event in (sg.WIN_CLOSED, 'Exit'):
         break
@@ -308,6 +317,7 @@ while True:
                      "Moving between images with the arrow keys is always available. Try it! \n\n" \
                      "  P.S.: Adding new labels will be disabled while this functionality is on", title="Quick annotation")
 
+        # disable input boxes
         quickAnnotation = not quickAnnotation
         window["labelToAdd"].update(disabled=quickAnnotation)
         window["defaultLabel"].update(disabled=quickAnnotation)
@@ -332,6 +342,7 @@ while True:
 
         window.hide()
 
+        # creation of listbox layout
         layout_all_images = list()
         layout_all_images = [[sg.Push(),sg.Text("Images and their state (Labeled, Unlabeled)", font=gui.subtitleFont), sg.Push()],
                         [sg.Push(), sg.Listbox(values=justNames, size=(30, 30), enable_events=True,horizontal_scroll=True,
@@ -450,6 +461,7 @@ while True:
         if not os.path.exists(destinationFolder):
             os.mkdir(destinationFolder)
 
+        # create temporary folder with classes and their corresponding images
         for index in imagesLabels:
             imageAddress = allImages[index]
             imageLabels = imagesLabels[index]
@@ -466,10 +478,13 @@ while True:
         try:
             window.Hide()
             pop = gui.popup("Processing...")
+            
+            # split folders in trian test and validation
             splitfolders.ratio(destinationFolder + "/dataset", seed=1337, output=destinationFolder + "/temp", ratio=(train, test, val))
             shutil.copytree(destinationFolder + "/temp", destinationFolder, dirs_exist_ok=True)
             shutil.rmtree(destinationFolder + "/dataset", ignore_errors=True)
             shutil.rmtree(destinationFolder + "/temp", ignore_errors=True)
+            
             pop.close()
             window.UnHide()
             sg.Popup("Done!", title=":)")
