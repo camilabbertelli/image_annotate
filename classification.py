@@ -21,8 +21,9 @@ class ClassifImage:
 
 def getLabelsNameList(vectorLabels):
     aux = list()
-    for index in range(len(vectorLabels)):
-        aux.append(str(index + 1) + ": " + vectorLabels[index])
+    for label in vectorLabels:
+        index = labels.index(label)
+        aux.append(str(index + 1) + ": " + label)
     return aux
 
 def loadImageAtIndex(window, index):
@@ -284,7 +285,6 @@ def main():
                 index = listNames.index(value)
                 aux.append(labels[index])
 
-            print(aux)
             imagesLabels[indexCurrentImage].labels = aux
 
             continue
@@ -393,19 +393,15 @@ def main():
 
 
         if quickAnnotation:
-            print(event)
             firstCharEvent = event.split(":", 1)[0]
             if firstCharEvent.isdigit() and int(firstCharEvent) <= len(labels):
                 index = int(firstCharEvent) - 1
-
                 # if already in list, remove
                 if labels[index] in imagesLabels[indexCurrentImage].labels:
                     imagesLabels[indexCurrentImage].labels.remove(labels[index])
                 else:
                     imagesLabels[indexCurrentImage].labels.append(labels[index])
-
                 aux = getLabelsNameList(imagesLabels[indexCurrentImage].labels)
-                print(aux)
                 window["labels"].set_value(aux)
                 continue
 

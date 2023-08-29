@@ -92,20 +92,27 @@ layout_save_dataset = [[sg.VPush()],
 labelsInList = list()
 labels_space = [[sg.Text("Available classes:", font=subtitleFont)],
                [sg.Listbox(values=labelsInList, size=(30, 20), enable_events=True, key="labels", font=bodyFont, horizontal_scroll=True, select_mode='single')],
-               [sg.Input(size=(30, 5), key="labelToAdd", enable_events=True, font=bodyFont)], 
+               [sg.Input(size=(23, 5), key="labelToAdd", enable_events=True, font=bodyFont), sg.ColorChooserButton(button_text="", target="colorPicked", key="colorChooser", button_color="#d9d9d9", bind_return_key=True)], 
                [sg.Button("Add", key="addLabel", font=bodyFont), sg.Button("Remove", key="removeLabel", font=bodyFont), sg.Button("Edit", key="editLabel", font=bodyFont)],
                [sg.Text(key='error', font=bodyFont)],
-               [sg.Text("Default class for unlabeled image: ", font=bodyFont)],
-               [sg.Input(defaultLabel, size=(30, 5), key="defaultLabel", enable_events=True, font=bodyFont)]]
+               [sg.Input("#d9d9d9", key="colorPicked", visible=False, enable_events=True)]]
 
-image_class_space = [[sg.Text("Images loaded: 0", key="numberImages", font=subtitleFont)],
-              [sg.Image(key="currentImage", size=(700, 500))],
-              [sg.Text("", key="imageName", font=bodyFont)], 
-              [sg.Button(key="previous", image_filename="media/previous.png"), sg.Button(key="next", image_filename="media/next.png")]]
+image_class_space = [[sg.Push(), sg.Text("Images loaded: 0", key="numberImages", font=subtitleFont), sg.Push()],
+              [sg.Graph(
+               (1300, 700), 
+               (0, 0),
+               (0, 0),
+               key="graph",
+               change_submits=True,  # mouse click events
+               motion_events=True,
+               drag_submits=True),],
+              [sg.Checkbox("Move elements", key="moveFigures", enable_events=True, font=subtitleFont)],
+              [sg.Push(), sg.Text("", key="imageName", font=bodyFont), sg.Push()], 
+              [sg.Push(), sg.Button(key="previous", image_filename="media/previous.png"), sg.Button(key="next", image_filename="media/next.png"), sg.Push()]]
 
-layout_detection = [[sg.Text("Quick annotation: "), sg.Button("OFF", key="quickAnnotation")],
+layout_detection = [[sg.Text("Quick annotation: "), sg.Button("OFF", key="quickAnnotation"), sg.Push(), sg.Button("Clear image", "clear")],
           [sg.VPush(), sg.Push(), sg.Column(labels_space, element_justification='c'), sg.Push(), sg.VPush(), 
            sg.VSeparator(), 
-           sg.VPush(), sg.Push(), sg.Column(image_class_space, element_justification='c'), sg.Push(), sg.VPush()],
+           sg.VPush(), sg.Column(image_class_space), sg.VPush()],
           [sg.Column([])],[sg.Column([])],
           [sg.Button("Save-->", key="continue"), sg.Push(), sg.Button("All images", key="allImages")]]
