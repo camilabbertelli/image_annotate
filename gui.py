@@ -105,12 +105,14 @@ image_class_space = [[sg.Push(), sg.Text("Images loaded: 0", key="numberImages",
                key="graph",
                change_submits=True,  # mouse click events
                motion_events=True,
-               drag_submits=True),],
-              [sg.Checkbox("Move elements", key="moveFigures", enable_events=True, font=subtitleFont)],
+               drag_submits=True, 
+               right_click_menu=["",[' ', 'Erase item']])],
+              [sg.Checkbox("Move elements", key="moveFigures", enable_events=True, font=subtitleFont),
+               sg.Checkbox("Show only figures from selected label", key="showFromSelected", enable_events=True, font=subtitleFont)],
               [sg.Push(), sg.Text("", key="imageName", font=bodyFont), sg.Push()], 
               [sg.Push(), sg.Button(key="previous", image_filename="media/previous.png"), sg.Button(key="next", image_filename="media/next.png"), sg.Push()]]
 
-layout_detection = [[sg.Text("Quick annotation: "), sg.Button("OFF", key="quickAnnotation"), sg.Push(), sg.Button("Clear image", "clear")],
+layout_detection = [[sg.Text("Quick annotation: "), sg.Button("OFF", key="quickAnnotation"), sg.Push(), sg.Button("Clear image", key="clear")],
           [sg.VPush(), sg.Push(), sg.Column(labels_space, element_justification='c'), sg.Push(), sg.VPush(), 
            sg.VSeparator(), 
            sg.VPush(), sg.Column(image_class_space), sg.VPush()],
