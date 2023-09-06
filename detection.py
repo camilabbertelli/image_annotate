@@ -24,7 +24,7 @@ class Figure:
     # @param label string label associated with that figure
     # @param normalizedPoints boolean that represents if the points range from (0-1), 
     # being normalized by the width and height of image. default False
-    def __init__(self, id : int, tlc: tuple(float, float), brc: tuple(float, float), label : str, normalizedPoints : bool = False) -> 'Figure':
+    def __init__(self, id : int, tlc: tuple[float, float], brc: tuple[float, float], label : str, normalizedPoints : bool = False) -> 'Figure':
         self.tempID = id
         self.tlc = tlc
         self.brc = brc
@@ -180,10 +180,12 @@ def populateImages() -> None:
         for name in files:
 
             path = os.path.join(root, name)
+            path_aux = path.split("/")[-2]
+            name_no_extension = name.split(".")[0]
             images[index] = DetectImage(path=path, name=name)
             images[index].figures = list()
 
-            fileFigures = glob(folderName + "/labels/" + path.split("/")[-2] + "/*txt")
+            fileFigures = glob(folderName + "/labels/" + path_aux + "/" + name_no_extension + ".txt")
 
             if not fileFigures:
                 continue
@@ -283,7 +285,7 @@ def drawAnnotateLabel(figure : Figure) -> None:
 # and a tuple with halp the width and height of the found figure
 # @param figures list of figures to search
 # @param coord tuple of points
-def getFigureAtLocation(figures: list, coord : tuple(float, float)) -> tuple(Figure, tuple(float, float)):
+def getFigureAtLocation(figures: list, coord : tuple[float, float]) -> tuple[Figure, tuple[float, float]]:
     global graph
 
     for fig in figures:
@@ -301,7 +303,7 @@ def getFigureAtLocation(figures: list, coord : tuple(float, float)) -> tuple(Fig
 ## Return the area of a bounding box represented by two points
 # @param tlc point 1
 # @param brc point 2
-def getBoxArea(tlc : tuple(float, float), brc : tuple(float, float)) -> float:
+def getBoxArea(tlc : tuple[float, float], brc : tuple[float, float]) -> float:
     x1, y1, x2, y2 = tlc[0], tlc[1], brc[0], brc[1]
     area = abs(x2 - x1) * abs(y2 - y1)
     return area
@@ -319,7 +321,7 @@ def deleteDottedLines() -> None:
 # @param pt1 start of the line
 # @param pt2 end of the line
 # @param color color of the line. default "black"
-def drawDottedLines(pt1 : tuple(int, int), pt2 : tuple(int, int), color : str = "black") -> None:
+def drawDottedLines(pt1 : tuple[int, int], pt2 : tuple[int, int], color : str = "black") -> None:
     global graph, dotted_lines
 
     thickness = 1
@@ -347,8 +349,12 @@ def pickTextColorBasedOnBgColor(bgColor : str) -> str:
 ## Generates random hex color
 def generateColor() -> str:
     color = random.randrange(0, 2**24)
-    hex_color = hex(color)
-    return "#" + hex_color[2:]
+    hex_color = hex(color)[2:]
+    
+    while len(hex_color) != 6:
+        hex_color += "0"
+
+    return "#" + hex_color
 
 ## Given the list displayed in the listbox, returns the corresponding selected label
 # @param values list of values generated from a sg.Window read()
@@ -384,7 +390,7 @@ def main():
     labels = list()
     labelsColors = dict()
     images = dict()
-    missingAnnotation = 0
+    missingAnnotation = list()
 
     indexCurrentImage = 0
 
@@ -494,11 +500,12 @@ def main():
                     images[indexCurrentImage].figures.append(figure)
                     drawAnnotateLabel(figure)
 
-        #  
+        # needs to be done everytime for smooth drawing effect
         graph.DeleteFigure(currentRect)
         if drawBox and start_rect != coord:
             currentRect = graph.DrawRectangle(start_rect, coord, line_color=labelsColors[currentLabel], line_width=2)
 
+        # checkbox "Show only figures from selected label" event
         if event == "showFromSelected":
             label = None
             showSelected = values["showFromSelected"]
@@ -507,17 +514,22 @@ def main():
                 label = currentLabel
             loadImageFiguresAtIndex(indexCurrentImage, label)
 
+            continue
+
+        # clear image event
         if event == "clear":
             deleteFigures(indexCurrentImage)
             images[indexCurrentImage].figures = list()
 
             continue
 
-
+        # color picker event
         if event == "colorPicked":
             color = values["colorPicked"]
             window["colorChooser"].update(button_color=color)
+            continue
 
+        # add new label event
         if event == "addLabel" or event == "labelToAdd" + "_enter":
             color = values["colorPicked"]
             labelToAdd = values["labelToAdd"]
@@ -541,7 +553,7 @@ def main():
             
             continue
 
-
+        # remove label event
         if event == "removeLabel":
             labelToRemove = values["labelToAdd"]
             clearSelected = False
@@ -557,6 +569,7 @@ def main():
                 window['error'].update("Label is non-existent!", text_color='maroon')
                 continue
 
+            # confirmation of removal window
             remove_space = [[sg.Push(),sg.Text("Remove \"" + labelToRemove + "\" from:", font=gui.subtitleFont), sg.Push()],
                             [sg.Push(),sg.Button("All images", key="all", font=gui.bodyFont), sg.Push(), sg.Button("This image", key="this", font=gui.bodyFont),sg.Push()]]
             
@@ -601,7 +614,9 @@ def main():
                 window["labels"].set_value([])
                 currentLabel = ""
 
+            continue
 
+        # edit label event
         if event == "editLabel":
             labelToEdit = values["labelToAdd"]
             if not labelToEdit:
@@ -618,7 +633,7 @@ def main():
 
             originalColor = labelsColors[labelToEdit]
             
-
+            # creation of edit window
             replace_space = [[sg.Push(),sg.Text("Replace \"" + labelToEdit + "\" with:", font=gui.subtitleFont),sg.Push()],
                             [sg.Push(),sg.Input(replaceWith, key="replaceWith", font=gui.bodyFont),sg.ColorChooserButton(button_text="", target="colorPickedEdit", key="colorChooserEdit", button_color=originalColor, bind_return_key=True), sg.Push()],
                             [sg.Push(),sg.Text(key="error-replace", font=gui.bodyFont),sg.Push()],
@@ -685,7 +700,7 @@ def main():
 
             window["labels"].update(set_to_index=[labels.index(replaceWith)])
 
-
+        # previous button event
         if event == "previous" or event == "Left:113":
             if indexCurrentImage - 1 < 0:
                 continue
@@ -694,7 +709,7 @@ def main():
             
             continue
 
-
+        # next button event
         if event == "next" or event == "Right:114":
             if indexCurrentImage + 1 >= len(images):
                 continue
@@ -703,7 +718,7 @@ def main():
             
             continue
 
-
+        # click on labels listbox event
         if event == "labels":
             listNames = getLabelsNameList(labels)
             
@@ -712,11 +727,8 @@ def main():
 
             select = values["labels"][0]
             index = listNames.index(select)
-            candidate = selectedToLabel(values)
-            if not candidate:
-                continue
 
-            currentLabel = candidate
+            currentLabel = selectedToLabel(values)
 
             label = None
             if showSelected:
@@ -725,6 +737,7 @@ def main():
 
             continue
 
+        # erase figure event (right-click at a especific figure)
         if event == 'Erase item':
             if values['graph'] == (None, None):
                 continue
@@ -738,19 +751,20 @@ def main():
             
             continue
 
+        # proceed to the next phase event
         if event == "continue":
-            missingAnnotation = 0
+            missingAnnotation = list()
             for index in images:
                 image = images[index]
                 if not image.figures:
-                    missingAnnotation += 1
+                    missingAnnotation.append(index)
 
             ch = "No"
             if not missingAnnotation:
                 ch = sg.popup_yes_no("  Once you continue and move on to the next phase, you won't be able to go back.\n" \
                                     "  Do you wish to proceed?",  title="Are you sure?")
             else:
-                ch = sg.popup_yes_no("  Atention! You have " + str(missingAnnotation) + " image(s) with no objects annotated!\n" \
+                ch = sg.popup_yes_no("  Atention! You have " + str(len(missingAnnotation)) + " image(s) with no objects annotated!\n" \
                                     "  Go to 'All images' to check what you missed!\n\n" \
                                     "  Once you continue and move on to the next phase, you won't be able to go back.\n" \
                                     "  Do you wish to proceed?",  title="Are you sure?")
@@ -761,7 +775,67 @@ def main():
 
             continue
 
+        # show relation of all images event
+        if event == "allImages":
+            justNames = list()
 
+            # gather all labels associated with an especific image and its figures
+            for index in images:
+                image = images[index]
+                extra = ""
+                
+                figLabels = list()
+                for fig in image.figures:
+                    if fig.label not in figLabels:
+                        figLabels.append(fig.label)
+
+                figLabels.sort()
+                
+                if figLabels:
+                    extra = " (" + ", ".join(figLabels) + ")"
+                
+                justNames.append(image.name + extra)
+
+
+            # creation of listbox layout
+            layout_all_images = list()
+            layout_all_images = [[sg.Push(),sg.Text("Images and their state (Labeled, Unlabeled)", font=gui.subtitleFont), sg.Push()],
+                            [sg.Push(), sg.Listbox(values=justNames, size=(30, 30), enable_events=True,horizontal_scroll=True,
+                                                font=gui.bodyFont,key="justNames", bind_return_key=True), sg.Push()],
+                            [sg.Column([])],
+                            [sg.Push(), sg.Button("Go to image", key="choose", font=gui.bodyFont), sg.Push()]]
+            
+            choose = sg.Window('Choose file', layout_all_images, keep_on_top=True, finalize=True)
+            choose["justNames"].bind('<Double-Button-1>' , "_double")
+
+            # color code elements
+            for index in images:
+                image = images[index]
+                color_bg = "powder blue" if image.figures else "light coral"
+                color_fg = "white" if image.index == indexCurrentImage else "black"
+                choose['justNames'].Widget.itemconfig(image.index, bg=color_bg, fg=color_fg)
+            
+            while (True):
+                event, values = choose.read()
+
+                if event in (sg.WIN_CLOSED, 'Exit'):
+                    break
+
+                if event == "choose" or event == "justNames" + "_double":
+                    select = values["justNames"]
+                    if not select:
+                        break
+                    
+                    index = justNames.index(select[0])
+                    goToImage(window, index)
+                    break
+
+
+            choose.close()
+            
+            continue
+
+        # enable/disable "quickAnnotation" feature event 
         if event == "quickAnnotation":
             if firstQuickAnnotation:
                 firstQuickAnnotation = False
@@ -783,68 +857,7 @@ def main():
 
             continue
 
-
-        if event == "allImages":
-            justNames = list()
-
-            for index in images:
-                image = images[index]
-                extra = ""
-                
-                figLabels = list()
-                for fig in image.figures:
-                    if fig.label not in figLabels:
-                        figLabels.append(fig.label)
-
-                figLabels.sort()
-                
-                if figLabels:
-                    extra = " (" + ", ".join(figLabels) + ")"
-                
-                justNames.append(image.name + extra)
-
-            #window.hide()
-
-            # creation of listbox layout
-            layout_all_images = list()
-            layout_all_images = [[sg.Push(),sg.Text("Images and their state (Labeled, Unlabeled)", font=gui.subtitleFont), sg.Push()],
-                            [sg.Push(), sg.Listbox(values=justNames, size=(30, 30), enable_events=True,horizontal_scroll=True,
-                                                font=gui.bodyFont,key="justNames", bind_return_key=True), sg.Push()],
-                            [sg.Column([])],
-                            [sg.Push(), sg.Button("Go to image", key="choose", font=gui.bodyFont), sg.Push()]]
-            choose = sg.Window('Choose file', layout_all_images, keep_on_top=True, finalize=True)
-        
-            choose["justNames"].bind('<Double-Button-1>' , "_double")
-            choose.write_event_value("start", None)
-            while (True):
-                event, values = choose.read()
-
-                if event in (sg.WIN_CLOSED, 'Exit'):
-                    break
-
-                if event == "start":
-                    for index in images:
-                        image = images[index]
-                        color_bg = "powder blue" if image.figures else "light coral"
-                        color_fg = "white" if image.index == indexCurrentImage else "black"
-                        choose['justNames'].Widget.itemconfig(image.index, bg=color_bg, fg=color_fg)
-
-                if event == "choose" or event == "justNames" + "_double":
-                    select = values["justNames"]
-                    if not select:
-                        break
-                    
-                    index = justNames.index(select[0])
-                    goToImage(window, index)
-                    break
-
-
-            choose.close()
-            #window.UnHide()
-            
-            continue
-
-
+        # handle numpad and number keyboard keys when quickAnnotation is active
         if quickAnnotation:
             firstCharEvent = event.split(":", 1)[0]
             if firstCharEvent.isdigit() and int(firstCharEvent) <= len(labels):
@@ -861,7 +874,7 @@ def main():
     if not proceed:
         exit()
 
-    if missingAnnotation == len(images):
+    if len(missingAnnotation) == len(images):
         sg.Popup("Since there are no labeled images, the program will close.", title=":(")
         exit()
 
@@ -878,6 +891,8 @@ def main():
         if event in (sg.WIN_CLOSED, 'Exit'):
             break
 
+        # maintain content event
+        # if checked, doesn't wipe out content on the selected destination folder
         if event == "maintainContent":
             maintainContent = values["maintainContent"]
 
@@ -887,6 +902,7 @@ def main():
 
             window['error_folder'].update("")    
 
+        # select destination folder event
         if event == "folder" and values['folder']:
             if os.path.exists(values['folder']) and os.listdir(values['folder']) and maintainContent:
                 window['error_folder'].update("Attention! Folder not empty. Will merge any existing content.", text_color='maroon')
@@ -894,6 +910,7 @@ def main():
 
             window['error_folder'].update("")
 
+        # saves dataset
         if event == "go":
             destinationFolder = values["folder"]
             if not destinationFolder:
@@ -913,15 +930,14 @@ def main():
             window.Hide()
             pop = gui.popup("Processing...")
 
-
-            hasData = list()
+            imagesWithFigures = list()
             for img in images:
-                if images[img].figures:
-                    hasData.append(img)
+                if img not in missingAnnotation:
+                    imagesWithFigures.append(img)
 
             # determine the number of images for each set
-            train_size = int(len(hasData) * train)
-            val_size = int(len(hasData) * val)
+            train_size = int(len(imagesWithFigures) * train)
+            val_size = int(len(imagesWithFigures) * val)
 
             images_train_folder = os.path.join(destinationFolder, "temp", "images", "train")
             images_test_folder  = os.path.join(destinationFolder, "temp", "images", "test")
@@ -930,11 +946,11 @@ def main():
             labels_test_folder  = os.path.join(destinationFolder, "temp", "labels", "test")
             labels_val_folder   = os.path.join(destinationFolder, "temp", "labels", "val")
 
-            labelsBefore = list()
 
-            # check existence of previous yaml
+            # check existence of previous yaml and gather labels info if maintaining content
+            labelsBefore = list()
             yamls = glob(destinationFolder + '/*.yaml')
-            if yamls:
+            if yamls and maintainContent:
                 with open(yamls[0], "r") as file:
                     oldYaml = yaml.safe_load(file)
                     for a in oldYaml["names"]:       
@@ -969,7 +985,7 @@ def main():
             with open(destinationFolder + "/data.yaml", "w") as file:
                 yaml.dump(yamlDict, file)
 
-            for i, index in enumerate(hasData):
+            for i, index in enumerate(imagesWithFigures):
                 dest_folder_images = ""
                 dest_folder_labels = ""
 
@@ -998,7 +1014,7 @@ def main():
                     # normalize the bounding boxes properties
                     width   /= image_width
                     height  /= image_height
-                    centerX /= image_height
+                    centerX /= image_width
                     centerY /= image_height
 
                     figuresText.append(str(indexLabel) + " " + 
@@ -1010,11 +1026,12 @@ def main():
                 with open(dest_folder_labels + "/" + images[index].name.split('.')[0] + ".txt", 'w') as f:
                     f.writelines(figuresText)
 
+            # clear unwanted content from destinationFolder
             if not maintainContent:
-                    inside = glob(destinationFolder + "/*")
-                    for clean_up in inside:
-                        if not clean_up.endswith('/temp') and not clean_up.endswith('.yaml'):    
-                            shutil.rmtree(clean_up, ignore_errors=True)
+                inside = glob(destinationFolder + "/*")
+                for clean_up in inside:
+                    if not clean_up.endswith('/temp') and not clean_up.endswith('.yaml'):    
+                        shutil.rmtree(clean_up, ignore_errors=True)
             shutil.copytree(destinationFolder + "/temp", destinationFolder, dirs_exist_ok=True)
             shutil.rmtree(destinationFolder + "/temp", ignore_errors=True)
             

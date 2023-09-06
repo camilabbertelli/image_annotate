@@ -100,8 +100,8 @@ labels_space = [[sg.Text("Available classes:", font=subtitleFont)],
 image_class_space = [[sg.Push(), sg.Text("Images loaded: 0", key="numberImages", font=subtitleFont), sg.Push()],
               [sg.Graph(
                (1300, 700), 
-               (0, 0),
-               (0, 0),
+               (0, 700),
+               (1300, 0),
                key="graph",
                change_submits=True,  # mouse click events
                motion_events=True,
