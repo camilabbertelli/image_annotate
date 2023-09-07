@@ -76,9 +76,11 @@ def populateImages() -> None:
         for root, dirs, files in os.walk(folderName, topdown=True):
             
             for name in files:
-
                 label = root.split("/")[-1]
                 path = os.path.join(root, name)
+                
+                if not name.endswith(".jpg") and not name.endswith(".png"):
+                    continue
 
                 if name not in names:
                     names.append(name)
