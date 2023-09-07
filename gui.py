@@ -9,7 +9,7 @@ sg.set_options(font=('Ubuntu', 10))
 
 """ MAIN """
 
- # different program types
+# different program types
 CLASSIFICATION = "Classification program"
 DETECTION = "Detection program"
 
@@ -105,6 +105,7 @@ image_class_space = [[sg.Push(), sg.Text("Images loaded: 0", key="numberImages",
                key="graph",
                change_submits=True,  # mouse click events
                motion_events=True,
+               enable_events=True,
                drag_submits=True, 
                right_click_menu=["",[' ', 'Erase item']])],
               [sg.Checkbox("Move elements", key="moveFigures", enable_events=True, font=subtitleFont),

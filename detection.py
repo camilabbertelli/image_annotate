@@ -55,12 +55,14 @@ class DetectImage:
     # @param self The object pointer
     # @param path The complete image path
     # @param name The image the image will go by, containing the extension, i.e. image.jpg, 001.png
-    def __init__(self, path : str, name : str) -> 'DetectImage':
+    def __init__(self, path : str, name : str, width : int = 0, height : int = 0) -> 'DetectImage':
         self.index = DetectImage.globalIndex
         DetectImage.globalIndex += 1
         self.path = path
         self.name = name
         self.figures = list()
+        self.width = width
+        self.height = height
         
 ## Returns list of strings to be presented in the labels listbox,
 # considering number on the left
@@ -74,9 +76,9 @@ def getLabelsNameList(vectorLabels : list) -> list:
 
 ## Loads image on image container(sg.Graph) and updates related information 
 # @param window PySimpleGUI window to update
-# @param index DetectImage index in images list
+# @param index DetectImage inloadImadex in images list
 def loadImageAtIndex(window : sg.Window, index : int) -> None:
-    global graph, imageOriginal, images, image_width, image_height
+    global graph, images
 
     imageOriginal = Image.open(images[index].path)
     imageOriginal.thumbnail((1300, 700))
@@ -86,9 +88,9 @@ def loadImageAtIndex(window : sg.Window, index : int) -> None:
 
     window["imageName"].update(images[index].name)
 
-    image_width, image_height = imageOriginal.size
-    graph.set_size((image_width, image_height))
-    graph.change_coordinates((0, image_height),(image_width, 0))
+    images[index].width, images[index].height = imageOriginal.size
+    graph.set_size((images[index].width, images[index].height))
+    graph.change_coordinates((0, images[index].height),(images[index].width, 0))
 
     graph.DrawImage(data=data, location=(0,0)) if data else None
 
@@ -97,12 +99,12 @@ def loadImageAtIndex(window : sg.Window, index : int) -> None:
 # @param label 
 # @param label optional label to load. if none given, will load everything
 def loadImageFiguresAtIndex(index : int, label : str = None) -> None:
-    global graph, labelsColors, image_width, image_height
+    global graph, labelsColors
     deleteFigures(index)
     
     for figure in images[index].figures:
         if label is None or not label or (label is not None and label == figure.label):
-            figure.denormalizePoints(image_width, image_height)
+            figure.denormalizePoints(images[index].width, images[index].height)
             tempID = graph.DrawRectangle(figure.tlc, figure.brc, line_color=labelsColors[figure.label], line_width=2)
             figure.tempID = tempID
             drawAnnotateLabel(figure)
@@ -275,6 +277,7 @@ def drawAnnotateLabel(figure : Figure) -> None:
 
     textID = graph.DrawText(text, location=(tlc[0], tlc[1] - 12), color=fgColor, font=gui.bodyFont)
     p1, p2 = graph.GetBoundingBox(textID)
+    
     rectID = graph.DrawRectangle(p1, p2, bgColor, bgColor, line_width=2)
 
     graph.BringFigureToFront(textID)
@@ -282,23 +285,27 @@ def drawAnnotateLabel(figure : Figure) -> None:
     figure.annotationID = (textID, rectID)
 
 ## Returns Figure on top of sg.Graph at the given coordinates 
-# and a tuple with halp the width and height of the found figure
 # @param figures list of figures to search
 # @param coord tuple of points
-def getFigureAtLocation(figures: list, coord : tuple[float, float]) -> tuple[Figure, tuple[float, float]]:
+def getFigureAtLocation(figures: list, coord : tuple[float, float]) -> Figure:
     global graph
+
+    label = None
+    if showSelected:
+        label = currentLabel
 
     for fig in figures:
         try:
-            p1, p2 = graph.GetBoundingBox(fig.tempID)
-            x1, y1 = p1
-            x2, y2 = p2
-            x, y = coord
-            if x1 <= x and x2 >= x and y1 <= y and y2 >= y:
-                return fig, ((x2 - x1)//2, (y2 - y1)//2)
+            if (label is None) or (label is not None and fig.label == label):
+                p1, p2 = graph.GetBoundingBox(fig.tempID)
+                x1, y1 = p1
+                x2, y2 = p2
+                x, y = coord
+                if x1 <= x and x2 >= x and y1 <= y and y2 >= y:
+                    return fig
         except Exception as e:
-            return None, (0, 0)
-    return None, (0, 0)
+            return None
+    return None
 
 ## Return the area of a bounding box represented by two points
 # @param tlc point 1
@@ -375,7 +382,7 @@ def selectedToLabel(values : list) -> str:
 def main():
     global labels, labelsColors, currentLabel
     global folderName
-    global images, indexCurrentImage, imageOriginal, image_width, image_height
+    global images, indexCurrentImage
     global graph, dotted_lines, showSelected
     
     # arguments check
@@ -412,10 +419,11 @@ def main():
     start_rect = coord = moveRatio = (0, 0)
     currentRect = clickedFigure = None
     currentLabel = ""
+    dragging = False
 
     # main window creation and keyboard bindings
     window = sg.Window('Image Classification Annotation', gui.layout_detection, finalize=True, return_keyboard_events=True)
-    graph = window.Element("graph")     # type: sg.Graph
+    graph = window.Element("graph")
     window['labelToAdd'].bind("<Return>", "_enter")
     window["labelToAdd"].set_focus(True)
     window["numberImages"].update("Images loaded:" + str(len(images)))
@@ -431,79 +439,77 @@ def main():
         # transform base numpad event 
         event = transformNumpad(event)
 
+        print(event, values)
+
         if event in (sg.WIN_CLOSED, 'Exit'):
             break
 
         # coord is the position of the mouse on the sg.Graph
         # if not yet captured, coord == (0, 0)
+
         horizontal_pt1 = (0, coord[1])
-        horizontal_pt2 = (image_width, coord[1])
+        horizontal_pt2 = (images[indexCurrentImage].width, coord[1])
         vertical_pt1 = (coord[0], 0)
-        vertical_pt2 = (coord[0], image_height)
+        vertical_pt2 = (coord[0], images[indexCurrentImage].height)
 
         deleteDottedLines()
         drawDottedLines(horizontal_pt1, horizontal_pt2)
         drawDottedLines(vertical_pt1, vertical_pt2)
 
+        # needs to be done everytime for smooth drawing effect
+        graph.DeleteFigure(currentRect)
+
         # move mouse event
         if event == "graph" + "+MOVE":
             x, y = values["graph"]
             coord = (x, y)
-            
+
         # click on graph event
         if event == "graph":
             x, y = values["graph"]
 
             coord = (x, y)
+
+            if not dragging:
+                start_rect = coord
+                dragging = True
+                drag_figure = getFigureAtLocation(images[indexCurrentImage].figures, coord)
+                lastxy = (x, y)
             
-            # if move figure only mode is activated
-            if moveFigure and clickedFigure:
-                drawBox = False
+            
+            delta_x, delta_y = x - lastxy[0], y - lastxy[1]
+            lastxy = x,y
 
-                graph.RelocateFigure(clickedFigure, x-moveRatio[0], y-moveRatio[1])
-                
-                # redraw the annotation associated with the figure and update internal info
+            if values["moveFigures"] and (drag_figure is not None):
                 for fig in images[indexCurrentImage].figures:
-                   if fig.tempID == clickedFigure:
-                       fig.tlc = (x-moveRatio[0], y-moveRatio[1])
-                       fig.brc = (x+moveRatio[0], y+moveRatio[1])
-                       drawAnnotateLabel(fig)
-                       break
-                continue
+                    if fig.tempID == drag_figure.tempID:
+                        graph.move_figure(fig.tempID, delta_x, delta_y)
+                        graph.BringFigureToFront(fig)
 
-            if not drawBox:
-                if values["moveFigures"] is not None and values["moveFigures"]:
-                    fig, moveRatio = getFigureAtLocation(images[indexCurrentImage].figures, coord)
-                    if fig:
-                        # update control variables
-                        clickedFigure = fig.tempID
-                        moveFigure = True
-                        graph.BringFigureToFront(clickedFigure)
-                elif currentLabel:
-                    start_rect = coord
-                    drawBox = True
+                        fig.tlc = (fig.tlc[0]+delta_x, fig.tlc[1]+delta_y)
+                        fig.brc = (fig.brc[0]+delta_x, fig.brc[1]+delta_y)
+                        drawAnnotateLabel(fig)
+                        
+                        break
+            elif start_rect != coord and currentLabel:
+                drawBox = True
+                currentRect = graph.DrawRectangle(start_rect, coord, line_color=labelsColors[currentLabel], line_width=2)
 
         # mouse click up event
         if event == "graph" + "+UP": 
-            if moveFigure:
-                moveFigure = False
-                clickedFigure = None
-                continue
-
+            
             # draw and consolidate figure drawn
-            if drawBox:
+            if dragging and drawBox:
                 drawBox = False
                 area = getBoxArea(start_rect, coord)
-                if start_rect != coord and area > 30:
+                if start_rect != coord and area > 30 and currentLabel:
                     tempID = graph.DrawRectangle(start_rect, coord, line_color=labelsColors[currentLabel], line_width=2)
                     figure = Figure(tempID, start_rect, coord, currentLabel)
                     images[indexCurrentImage].figures.append(figure)
                     drawAnnotateLabel(figure)
-
-        # needs to be done everytime for smooth drawing effect
-        graph.DeleteFigure(currentRect)
-        if drawBox and start_rect != coord:
-            currentRect = graph.DrawRectangle(start_rect, coord, line_color=labelsColors[currentLabel], line_width=2)
+            start_rect = coord = (0, 0)
+            drag_figure = None
+            dragging = False
 
         # checkbox "Show only figures from selected label" event
         if event == "showFromSelected":
@@ -514,6 +520,11 @@ def main():
                 label = currentLabel
             loadImageFiguresAtIndex(indexCurrentImage, label)
 
+            continue
+
+        # checkbox "Show only figures from selected label" event
+        if event.startswith("m:") and window.FindElementWithFocus() != window["labelToAdd"]:
+            window["moveFigures"].update(value=(not values["moveFigures"]))
             continue
 
         # clear image event
@@ -742,7 +753,7 @@ def main():
             if values['graph'] == (None, None):
                 continue
 
-            fig, ratio = getFigureAtLocation(images[indexCurrentImage].figures, values["graph"])
+            fig = getFigureAtLocation(images[indexCurrentImage].figures, values["graph"])
             if fig is not None:
                 graph.DeleteFigure(fig.tempID)
                 graph.DeleteFigure(fig.annotationID[0])
@@ -867,6 +878,9 @@ def main():
                 window["labels"].update(set_to_index=[index])
 
                 continue
+
+            if firstCharEvent == "m":
+                window["moveFigures"].update(value=(not values["moveFigures"]))
 
         
     window.close()
@@ -1012,10 +1026,10 @@ def main():
                     centerY = figure.tlc[1] + (height/2)
 
                     # normalize the bounding boxes properties
-                    width   /= image_width
-                    height  /= image_height
-                    centerX /= image_width
-                    centerY /= image_height
+                    width   /= images[index].width
+                    height  /= images[index].height
+                    centerX /= images[index].width
+                    centerY /= images[index].height
 
                     figuresText.append(str(indexLabel) + " " + 
                                        str(centerX) + " " + 
