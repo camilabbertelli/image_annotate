@@ -273,6 +273,7 @@ def drawAnnotateLabel(figure : Figure) -> None:
     graph.DeleteFigure(figure.annotationID[1])
 
     bgColor = labelsColors[text]
+    
     fgColor = pickTextColorBasedOnBgColor(bgColor)
 
     textID = graph.DrawText(text, location=(tlc[0], tlc[1] - 12), color=fgColor, font=gui.bodyFont)
@@ -379,6 +380,15 @@ def selectedToLabel(values : list) -> str:
     return labels[index]
 
 
+def isWithinBounds(pt1 : tuple[float, float], pt2 : tuple[float, float]) -> bool :
+    global graph
+
+    bounds_pt1 = (0, 0) 
+    bounds_pt2 = graph.get_size()
+
+    return (bounds_pt1[0] < pt1[0] < pt2[0] < bounds_pt2[0] and 
+            bounds_pt1[1] < pt1[1] < pt2[1] < bounds_pt2[1])
+
 def main():
     global labels, labelsColors, currentLabel
     global folderName
@@ -414,12 +424,13 @@ def main():
     firstQuickAnnotation = True
     quickAnnotation = False
     drawBox = False
-    showSelected = moveFigure = False
-    dotted_lines = list()
-    start_rect = coord = moveRatio = (0, 0)
-    currentRect = clickedFigure = None
-    currentLabel = ""
+    showSelected = False
     dragging = False
+    dotted_lines = list()
+    start_rect = coord = (0, 0)
+    currentRect = None
+    currentLabel = ""
+    lastChoosenColor = "#d9d9d9"
 
     # main window creation and keyboard bindings
     window = sg.Window('Image Classification Annotation', gui.layout_detection, finalize=True, return_keyboard_events=True)
@@ -438,8 +449,6 @@ def main():
         event, values = window.read()
         # transform base numpad event 
         event = transformNumpad(event)
-
-        print(event, values)
 
         if event in (sg.WIN_CLOSED, 'Exit'):
             break
@@ -474,8 +483,7 @@ def main():
                 start_rect = coord
                 dragging = True
                 drag_figure = getFigureAtLocation(images[indexCurrentImage].figures, coord)
-                lastxy = (x, y)
-            
+                lastxy = coord
             
             delta_x, delta_y = x - lastxy[0], y - lastxy[1]
             lastxy = x,y
@@ -483,11 +491,25 @@ def main():
             if values["moveFigures"] and (drag_figure is not None):
                 for fig in images[indexCurrentImage].figures:
                     if fig.tempID == drag_figure.tempID:
-                        graph.move_figure(fig.tempID, delta_x, delta_y)
-                        graph.BringFigureToFront(fig)
+                        
+                        new_tlc_x = fig.tlc[0]+delta_x
+                        new_tlc_y = fig.tlc[1]+delta_y
+                        new_brc_x = fig.brc[0]+delta_x
+                        new_brc_y = fig.brc[1]+delta_y
 
-                        fig.tlc = (fig.tlc[0]+delta_x, fig.tlc[1]+delta_y)
-                        fig.brc = (fig.brc[0]+delta_x, fig.brc[1]+delta_y)
+                        if not isWithinBounds((new_tlc_x, new_tlc_y), (new_brc_x, new_brc_y)):
+                            
+                            graph.update()
+                            break
+
+                        graph.move_figure(fig.tempID, delta_x, delta_y)
+                        
+                        graph.BringFigureToFront(fig)
+                        images[indexCurrentImage].figures.remove(fig)
+                        images[indexCurrentImage].figures.insert(0, fig)
+
+                        fig.tlc = (new_tlc_x, new_tlc_y)
+                        fig.brc = (new_brc_x, new_brc_y)
                         drawAnnotateLabel(fig)
                         
                         break
@@ -502,7 +524,7 @@ def main():
             if dragging and drawBox:
                 drawBox = False
                 area = getBoxArea(start_rect, coord)
-                if start_rect != coord and area > 30 and currentLabel:
+                if start_rect != coord and area > 30 and currentLabel and isWithinBounds(start_rect, coord):
                     tempID = graph.DrawRectangle(start_rect, coord, line_color=labelsColors[currentLabel], line_width=2)
                     figure = Figure(tempID, start_rect, coord, currentLabel)
                     images[indexCurrentImage].figures.append(figure)
@@ -537,12 +559,14 @@ def main():
         # color picker event
         if event == "colorPicked":
             color = values["colorPicked"]
-            window["colorChooser"].update(button_color=color)
+            if len(color) == len(lastChoosenColor):
+                lastChoosenColor = color
+            window["colorChooser"].update(button_color=lastChoosenColor)
             continue
 
         # add new label event
         if event == "addLabel" or event == "labelToAdd" + "_enter":
-            color = values["colorPicked"]
+            color = lastChoosenColor
             labelToAdd = values["labelToAdd"]
 
             if not labelToAdd or not color:
@@ -643,6 +667,7 @@ def main():
             replaceWith = labelToEdit
 
             originalColor = labelsColors[labelToEdit]
+            lastChoosenColorEdit = originalColor
             
             # creation of edit window
             replace_space = [[sg.Push(),sg.Text("Replace \"" + labelToEdit + "\" with:", font=gui.subtitleFont),sg.Push()],
@@ -655,6 +680,7 @@ def main():
             edit = sg.Window('Edit label', replace_space, keep_on_top=True, finalize=True, return_keyboard_events=True)
 
             edit['replaceWith'].bind("<Return>", "_enter")
+
             while (True):
                 event, values = edit.read()
 
@@ -663,12 +689,15 @@ def main():
 
                 if event == "colorPickedEdit":
                     color = values["colorPickedEdit"]
-                    edit["colorChooserEdit"].update(button_color=color)
+                    if len(color) == len(lastChoosenColorEdit):
+                        lastChoosenColorEdit = color
+                    edit["colorChooserEdit"].update(button_color=lastChoosenColorEdit)
+
 
                 if event == "save" or event == "replaceWith" + "_enter":
 
                     replaceWith = values["replaceWith"]
-                    colorReplace = values["colorPickedEdit"]
+                    colorReplace = lastChoosenColorEdit
 
                     if not replaceWith or not colorReplace:
                         replaceWith = labelToEdit
@@ -748,7 +777,33 @@ def main():
 
             continue
 
-        # erase figure event (right-click at a especific figure)
+        # bring figure to front event (right-click at a specific figure)
+        if event == 'Bring to front':
+            if values['graph'] == (None, None):
+                continue
+
+            fig = getFigureAtLocation(images[indexCurrentImage].figures, values["graph"])
+            if fig is not None:
+                graph.BringFigureToFront(fig)
+                images[indexCurrentImage].figures.remove(fig)
+                images[indexCurrentImage].figures.insert(0, fig)
+
+            continue
+
+        # send figure to back event (right-click at a specific figure)
+        if event == 'Send to back':
+            if values['graph'] == (None, None):
+                continue
+
+            fig = getFigureAtLocation(images[indexCurrentImage].figures, values["graph"])
+            if fig is not None:
+                graph.SendFigureToBack(fig)
+                images[indexCurrentImage].figures.remove(fig)
+                images[indexCurrentImage].figures.insert(len(images[indexCurrentImage].figures), fig)
+
+            continue
+
+        # erase figure event (right-click at a specific figure)
         if event == 'Erase item':
             if values['graph'] == (None, None):
                 continue
