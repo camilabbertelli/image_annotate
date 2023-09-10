@@ -10,6 +10,7 @@ import splitfolders
 from glob import glob
 from PIL import Image
 from gui import sg
+from collections import OrderedDict
 
 ## Class destinated to store information about an image in the classification context
 class ClassifImage:
@@ -73,22 +74,44 @@ def populateImages() -> None:
     if os.path.exists(folderName + "/train") and os.path.exists(folderName + "/test"):
         
         names = list()
+        foldersName = OrderedDict()
         for root, dirs, files in os.walk(folderName, topdown=True):
-            
             for name in files:
+                nameNoExt = name.split(".")[-2]
+                extension = name.split(".")[-1]
+                label = root.split("/")[-1]
+                folder = root.split("/")[-2]
+
                 label = root.split("/")[-1]
                 path = os.path.join(root, name)
                 
                 if not name.endswith(".jpg") and not name.endswith(".png"):
                     continue
+                
+                if name not in foldersName:
+                    foldersName[name] = list()
+                
+                if folder not in foldersName[name]:
+                    foldersName[name].append(folder)
 
-                if name not in names:
-                    names.append(name)
-                    images[names.index(name)] = ClassifImage(path=path, name=name)
-
-                images[names.index(name)].labels.append(label)
-
-                if not label in labels:
+                actualName = name
+                
+                if (folder in foldersName[name] and len(foldersName[name]) > 1) or \
+                   (folder not in foldersName[name]):
+                    actualName = nameNoExt + "_" + str(len(foldersName[name]) - 1) + "." + extension
+                    os.rename(path, root + "/" + actualName)
+                    
+                
+                if actualName not in names:
+                    names.append(actualName)
+                        
+                indexImage = names.index(actualName)
+                if indexImage not in images:
+                    images[indexImage] = ClassifImage(path=path, name=actualName)
+ 
+                images[indexImage].labels.append(label)
+                
+                if label not in labels:
                     labels.append(label)
     else:
         imagesPaths = (folderName + '/*.png', folderName + '/*.jpg') # the tuple of file types
@@ -530,7 +553,7 @@ def main():
             pop = gui.popup("Processing...")
 
             if not os.path.exists(destinationFolder):
-                os.mkdir(destinationFolder)
+                os.makedirs(destinationFolder)
 
             # 
             # the following steps occur in this stage:
@@ -567,8 +590,24 @@ def main():
 
 
             for index in images:
-                imageLabels = images[index].labels
+                imageLabels  = images[index].labels
                 imageAddress = images[index].path
+                imageName    = images[index].name
+
+                if os.path.exists(destinationFolder):
+                    for root, dirs, files in os.walk(destinationFolder, topdown=True):
+                        for name in files:
+                            if name == imageName:
+                                indexAux = 1
+
+                                newName = name.split(".")[0] + "_" + str(indexAux) + "." + name.split(".")[1]
+                                while os.path.exists(imageAddress.replace(imageName, "") + newName):
+                                    index += 1
+                                    newName = name.split(".")[0] + "_" + str(indexAux) + "." + name.split(".")[1]
+                                
+                                os.rename(imageAddress, imageAddress.replace(imageName, "") + newName)
+                                imageAddress = imageAddress.replace(imageName, "") + newName
+                                imageName = newName
 
                 for label in imageLabels:
                     destinationPath = destinationFolder + "/temp-aux/" + label
