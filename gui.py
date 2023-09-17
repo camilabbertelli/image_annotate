@@ -10,10 +10,10 @@ sg.set_options(font=('Ubuntu', 10))
 """ MAIN """
 
 # different program types
-CLASSIFICATION = "Classification program"
-DETECTION = "Detection program"
+CLASSIFICATION = "Classification annotator"
+DETECTION = "Detection annotator"
 
-program_type_space = [[sg.Text("Program Type:", font=subtitleFont)],
+program_type_space = [[sg.Text("Annotator Type:", font=subtitleFont)],
                        [sg.Radio(CLASSIFICATION, "program", key=CLASSIFICATION, default=True, font=bodyFont)], 
                        [sg.Radio(DETECTION, "program", key=DETECTION, font=bodyFont)]]
 

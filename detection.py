@@ -619,6 +619,7 @@ def main():
             labelToRemove = values["labelToAdd"]
             clearSelected = False
             all = False
+            close = False
             if not labelToRemove:
                 if values["labels"]:
                     labelToRemove = selectedToLabel(values)
@@ -639,6 +640,7 @@ def main():
                 event, values = remove.read()
 
                 if event in (sg.WIN_CLOSED, 'Exit'):
+                    close = True
                     break
 
                 if event == "all":
@@ -649,6 +651,9 @@ def main():
                     break
             
             remove.close()
+
+            if close:
+                continue
 
             for index in images:
                 if not all and index != indexCurrentImage:
@@ -746,6 +751,7 @@ def main():
                                 fig.label = replaceWith
 
                     labels[labels.index(labelToEdit)] = replaceWith
+                    currentLabel = replaceWith
                     labelsColors[replaceWith] = labelsColors[labelToEdit]
                     del labelsColors[labelToEdit]
 
