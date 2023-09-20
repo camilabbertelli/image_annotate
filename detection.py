@@ -412,8 +412,8 @@ def isWithinBounds(pt1 : tuple[float, float], pt2 : tuple[float, float]) -> bool
     bounds_pt1 = (0, 0) 
     bounds_pt2 = graph.get_size()
 
-    return (bounds_pt1[0] < pt1[0] < pt2[0] < bounds_pt2[0] and 
-            bounds_pt1[1] < pt1[1] < pt2[1] < bounds_pt2[1])
+    return (bounds_pt1[0] <= pt1[0] < pt2[0] < bounds_pt2[0] and 
+            bounds_pt1[1] <= pt1[1] < pt2[1] < bounds_pt2[1])
 
 def main():
     global labels, labelsColors, currentLabel
